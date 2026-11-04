@@ -1,4 +1,4 @@
-# Python
+﻿# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -17,7 +17,10 @@ ENV/
 
 # 测试产物
 report/allure-results/
+report/allure-results-ui/
 report/allure-report/
+report/allure-report-ui/
+report/screenshots/
 .pytest_cache/
 .coverage
 htmlcov/
@@ -36,3 +39,4 @@ logs/*.log.*
 .DS_Store
 Thumbs.db
 desktop.ini
+

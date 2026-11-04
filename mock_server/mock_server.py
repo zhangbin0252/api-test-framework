@@ -95,6 +95,22 @@ class Handler(BaseHTTPRequestHandler):
             return None
         return USERS.get(uid)
 
+    def _serve_static(self, filename, content_type):
+        """返回 static 目录下的静态页面（前端 UI）"""
+        import os
+        base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+        full = os.path.join(base, filename)
+        if not os.path.exists(full):
+            return self._send(404, {"error": "page not found", "file": filename})
+        with open(full, "rb") as f:
+            body = f.read()
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
     def log_message(self, fmt, *args):
         pass  # 静默，避免污染测试输出
 
@@ -102,6 +118,12 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path
         query = parse_qs(urlparse(self.path).query)
+
+        # ---- 前端页面（UI 自动化测试的对象）----
+        if path in ("/", "/login.html", "/index.html"):
+            return self._serve_static("login.html", "text/html; charset=utf-8")
+        if path == "/app":
+            return self._serve_static("index.html", "text/html; charset=utf-8")
 
         if path == "/health":
             return self._send(200, {"status": "ok", "time": now()})

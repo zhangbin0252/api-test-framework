@@ -1,0 +1,324 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>用户管理系统 · 用户列表</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #f4f6f8; color: #333;
+  }
+  header {
+    background: #4E7282; color: #fff; padding: 0 28px; height: 58px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  header h1 { font-size: 17px; font-weight: 600; }
+  .userbox { display: flex; align-items: center; gap: 14px; font-size: 13px; }
+  .badge {
+    background: rgba(255,255,255,.18); padding: 3px 9px; border-radius: 10px;
+    font-size: 12px;
+  }
+  #logoutBtn {
+    background: transparent; border: 1px solid rgba(255,255,255,.5); color: #fff;
+    padding: 5px 13px; border-radius: 5px; font-size: 12px; cursor: pointer;
+  }
+  #logoutBtn:hover { background: rgba(255,255,255,.15); }
+
+  main { padding: 24px 28px; max-width: 1080px; margin: 0 auto; }
+  .toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .toolbar h2 { font-size: 16px; color: #1a1a1a; }
+  .actions { display: flex; gap: 10px; }
+  button.primary {
+    background: #4E7282; color: #fff; border: none; padding: 9px 18px;
+    border-radius: 5px; font-size: 13px; cursor: pointer;
+  }
+  button.primary:hover { background: #405E6C; }
+  button.ghost {
+    background: #fff; color: #4E7282; border: 1px solid #c9d3d8;
+    padding: 9px 16px; border-radius: 5px; font-size: 13px; cursor: pointer;
+  }
+
+  table {
+    width: 100%; border-collapse: collapse; background: #fff;
+    border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.07);
+  }
+  th, td { padding: 12px 16px; text-align: left; font-size: 13.5px; }
+  thead th {
+    background: #eef2f4; color: #405E6C; font-weight: 600;
+    border-bottom: 1px solid #dde4e8;
+  }
+  tbody tr { border-bottom: 1px solid #f0f3f5; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #f8fafb; }
+  .tag {
+    display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 12px;
+  }
+  .tag.admin { background: #fdf3e3; color: #9a6b1f; }
+  .tag.user { background: #e9f1f6; color: #40606f; }
+  .tag.active { background: #e7f4ec; color: #2E6B3F; }
+  .tag.disabled { background: #f7e9e7; color: #B03A2E; }
+  .link-btn {
+    background: none; border: none; color: #4E7282; cursor: pointer;
+    font-size: 13px; text-decoration: underline; padding: 0 4px;
+  }
+  .link-btn.danger { color: #B03A2E; }
+
+  .pager {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    margin-top: 18px; font-size: 13px; color: #666;
+  }
+  .pager button {
+    background: #fff; border: 1px solid #d5dbe0; padding: 6px 14px;
+    border-radius: 5px; cursor: pointer; font-size: 13px;
+  }
+  .pager button:disabled { color: #bbb; cursor: not-allowed; }
+  #pageInfo { min-width: 90px; text-align: center; }
+
+  /* 弹窗 */
+  .modal-mask {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4);
+    align-items: center; justify-content: center; z-index: 100;
+  }
+  .modal-mask.show { display: flex; }
+  .modal {
+    background: #fff; width: 400px; border-radius: 9px; padding: 26px;
+  }
+  .modal h3 { font-size: 16px; margin-bottom: 18px; color: #1a1a1a; }
+  .modal .field { margin-bottom: 15px; }
+  .modal label { display: block; font-size: 13px; color: #444; margin-bottom: 5px; font-weight: 600; }
+  .modal input, .modal select {
+    width: 100%; padding: 9px 12px; border: 1px solid #d5dbe0;
+    border-radius: 5px; font-size: 13.5px; outline: none;
+  }
+  .modal input:focus, .modal select:focus { border-color: #4E7282; }
+  .modal-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  #modalMsg { font-size: 12.5px; color: #B03A2E; min-height: 16px; margin-top: 8px; }
+
+  #toast {
+    position: fixed; top: 74px; right: 28px; background: #2E6B3F; color: #fff;
+    padding: 11px 20px; border-radius: 6px; font-size: 13px;
+    opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 200;
+  }
+  #toast.show { opacity: 1; }
+  #toast.error { background: #B03A2E; }
+</style>
+</head>
+<body>
+<header>
+  <h1>用户管理系统</h1>
+  <div class="userbox">
+    <span>当前用户：<b id="currentUser">-</b></span>
+    <span class="badge" id="currentRole">-</span>
+    <button id="logoutBtn">退出登录</button>
+  </div>
+</header>
+
+<main>
+  <div class="toolbar">
+    <h2>用户列表</h2>
+    <div class="actions">
+      <button class="ghost" id="refreshBtn">刷新</button>
+      <button class="primary" id="addUserBtn">+ 新建用户</button>
+    </div>
+  </div>
+
+  <table id="userTable">
+    <thead>
+      <tr>
+        <th style="width:70px">ID</th>
+        <th>用户名</th>
+        <th>邮箱</th>
+        <th style="width:90px">角色</th>
+        <th style="width:90px">状态</th>
+        <th style="width:140px">操作</th>
+      </tr>
+    </thead>
+    <tbody id="userTbody">
+      <tr><td colspan="6" style="text-align:center;color:#999;padding:30px">加载中...</td></tr>
+    </tbody>
+  </table>
+
+  <div class="pager">
+    <button id="prevBtn">上一页</button>
+    <span id="pageInfo">-</span>
+    <button id="nextBtn">下一页</button>
+  </div>
+</main>
+
+<!-- 新建用户弹窗 -->
+<div class="modal-mask" id="addModal">
+  <div class="modal">
+    <h3>新建用户</h3>
+    <div class="field">
+      <label for="newUsername">用户名</label>
+      <input type="text" id="newUsername" placeholder="请输入用户名">
+    </div>
+    <div class="field">
+      <label for="newEmail">邮箱</label>
+      <input type="text" id="newEmail" placeholder="请输入邮箱">
+    </div>
+    <div class="field">
+      <label for="newRole">角色</label>
+      <select id="newRole">
+        <option value="user">普通用户</option>
+        <option value="admin">管理员</option>
+      </select>
+    </div>
+    <div id="modalMsg"></div>
+    <div class="modal-foot">
+      <button class="ghost" id="cancelAdd">取消</button>
+      <button class="primary" id="confirmAdd">确定</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const TOKEN_KEY = 'token';
+const state = { page: 1, size: 2, totalPages: 1 };
+
+function token() { return localStorage.getItem(TOKEN_KEY); }
+function authHeaders() {
+  return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token() };
+}
+function toast(text, isError) {
+  const el = document.getElementById('toast');
+  el.textContent = text;
+  el.className = 'show' + (isError ? ' error' : '');
+  setTimeout(() => { el.className = ''; }, 2000);
+}
+
+// 未登录直接踢回登录页
+if (!token()) { location.href = '/'; }
+
+const me = JSON.parse(localStorage.getItem('user') || '{}');
+document.getElementById('currentUser').textContent = me.username || '-';
+document.getElementById('currentRole').textContent = me.id === 1 ? '管理员' : '普通用户';
+
+async function loadUsers() {
+  const tbody = document.getElementById('userTbody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;padding:30px">加载中...</td></tr>';
+
+  try {
+    const resp = await fetch(`/api/users?page=${state.page}&size=${state.size}`, {
+      headers: authHeaders()
+    });
+    if (resp.status === 401) { localStorage.clear(); location.href = '/'; return; }
+    const data = await resp.json();
+
+    if (!data.data || data.data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;padding:30px">暂无数据</td></tr>';
+    } else {
+      tbody.innerHTML = data.data.map(u => `
+        <tr data-user-id="${u.id}">
+          <td>${u.id}</td>
+          <td>${u.username}</td>
+          <td>${u.email}</td>
+          <td><span class="tag ${u.role}">${u.role === 'admin' ? '管理员' : '普通用户'}</span></td>
+          <td><span class="tag ${u.status}">${u.status === 'active' ? '启用' : '禁用'}</span></td>
+          <td>
+            <button class="link-btn" onclick="editUser(${u.id})">编辑</button>
+            <button class="link-btn danger" onclick="delUser(${u.id})">删除</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    state.totalPages = data.total_pages || 1;
+    document.getElementById('pageInfo').textContent = `第 ${data.page} / ${state.totalPages} 页`;
+    document.getElementById('prevBtn').disabled = state.page <= 1;
+    document.getElementById('nextBtn').disabled = state.page >= state.totalPages;
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#B03A2E;padding:30px">加载失败：${e.message}</td></tr>`;
+  }
+}
+
+document.getElementById('prevBtn').onclick = () => {
+  if (state.page > 1) { state.page--; loadUsers(); }
+};
+document.getElementById('nextBtn').onclick = () => {
+  if (state.page < state.totalPages) { state.page++; loadUsers(); }
+};
+document.getElementById('refreshBtn').onclick = () => loadUsers();
+
+document.getElementById('logoutBtn').onclick = async () => {
+  await fetch('/api/logout', { method: 'POST', headers: authHeaders() });
+  localStorage.clear();
+  location.href = '/';
+};
+
+// 新建用户
+const addModal = document.getElementById('addModal');
+document.getElementById('addUserBtn').onclick = () => {
+  document.getElementById('newUsername').value = '';
+  document.getElementById('newEmail').value = '';
+  document.getElementById('modalMsg').textContent = '';
+  addModal.classList.add('show');
+};
+document.getElementById('cancelAdd').onclick = () => addModal.classList.remove('show');
+
+document.getElementById('confirmAdd').onclick = async () => {
+  const username = document.getElementById('newUsername').value.trim();
+  const email = document.getElementById('newEmail').value.trim();
+  const role = document.getElementById('newRole').value;
+  const msg = document.getElementById('modalMsg');
+  msg.textContent = '';
+
+  if (!username) { msg.textContent = '用户名不能为空'; return; }
+  if (!email) { msg.textContent = '邮箱不能为空'; return; }
+
+  const resp = await fetch('/api/users', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ username, email, role })
+  });
+  const data = await resp.json();
+
+  if (resp.status === 201) {
+    addModal.classList.remove('show');
+    toast('创建成功');
+    state.page = 1;
+    await loadUsers();   // 等待刷新完成，UI 自动化才能稳定断言
+  } else {
+    msg.textContent = data.message || '创建失败';
+  }
+};
+
+// 编辑 / 删除
+async function editUser(id) {
+  const resp = await fetch(`/api/users/${id}`, { headers: authHeaders() });
+  const data = await resp.json();
+  if (resp.status !== 200) { toast(data.message || '查询失败', true); return; }
+
+  const newEmail = prompt(`修改 ${data.data.username} 的邮箱：`, data.data.email);
+  if (newEmail === null) return;
+
+  const up = await fetch(`/api/users/${id}`, {
+    method: 'PATCH', headers: authHeaders(),
+    body: JSON.stringify({ email: newEmail })
+  });
+  const upData = await up.json();
+  if (up.status === 200) { toast('修改成功'); loadUsers(); }
+  else { toast(upData.message || '修改失败', true); }
+}
+
+async function delUser(id) {
+  if (!confirm(`确定删除用户 ${id} 吗？`)) return;
+  const resp = await fetch(`/api/users/${id}`, { method: 'DELETE', headers: authHeaders() });
+  if (resp.status === 204) { toast('删除成功'); loadUsers(); }
+  else {
+    const d = await resp.json().catch(() => ({}));
+    toast(d.message || '删除失败', true);
+  }
+}
+
+loadUsers();
+</script>
+</body>
+</html>
+

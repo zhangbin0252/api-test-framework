@@ -1,7 +1,7 @@
-# 接口自动化测试框架（Python + Requests + pytest + Allure）
+# 接口 + UI 自动化测试框架（Python + pytest + Requests + Playwright + Allure）
 
-> 一个可以直接跑起来、可以讲清楚的接口自动化测试项目。
-> 不依赖任何外部测试站，自带 Mock 服务，测试结果 **100% 可复现**。
+> 一个可以直接跑起来、可以讲清楚的自动化测试项目。
+> 不依赖任何外部测试站，自带 Mock 服务（含 Web 前端），测试结果 **100% 可复现**。
 
 ## 项目背景
 
@@ -15,12 +15,15 @@
 2. 可以**故意埋缺陷**，让「发现 Bug」变成真的发现，而不是编的
 3. 真实工作中本来就要用 Mock 隔离第三方依赖，这套思路可以直接迁移
 
+后来在这个基础上又补了一层 **Playwright UI 自动化**，形成「接口 + UI」两层测试：
+同一个被测系统，接口层测协议与业务逻辑，UI 层测用户真实操作路径，两层互相印证。
+
 ## 项目结构
 
 ```
 api_test_framework/
 ├── config/
-│   └── config.yaml            # base_url、超时、账号等全局配置
+│   └── config.yaml            # base_url、超时、账号、UI 开关等全局配置
 ├── data/
 │   ├── login.yaml             # 登录模块测试数据（10 条）
 │   └── user.yaml              # 用户模块测试数据（18 条）
@@ -29,22 +32,34 @@ api_test_framework/
 │   └── user_api.py            # 用户/登录接口封装
 ├── business/
 │   └── user_business.py       # 业务层：登录→访问、创建→查询 等跨接口组合
-├── testcases/
+├── testcases/                 # 接口用例（62 条）
 │   ├── conftest.py            # fixture：启动 Mock、登录复用、用例间数据隔离
 │   ├── test_login.py          # 登录模块 13 条
 │   ├── test_user.py           # 用户模块 19 条
 │   ├── test_auth.py           # 鉴权与安全 6 条
 │   ├── test_business_flow.py  # 业务流串联 4 条
 │   └── test_httpbin.py        # HTTP 协议层 20 条（外部 httpbin，不通自动 skip）
+├── ui/                        # UI 用例（19 条，Playwright）
+│   ├── pytest.ini             # UI 测试独立配置
+│   ├── conftest.py            # fixture：浏览器复用、上下文隔离、失败截图
+│   ├── browser.py             # 浏览器管理（单例 + 独立上下文）
+│   ├── base_page.py           # 页面对象基类：通用操作与断言封装
+│   ├── login_page.py          # 登录页 PO
+│   ├── user_list_page.py      # 用户列表页 PO
+│   ├── test_login_ui.py       # 登录页用例 9 条
+│   └── test_user_list_ui.py   # 用户列表页用例 10 条
 ├── mock_server/
-│   └── mock_server.py         # 被测系统：本地 Mock 服务（含 2 个已知缺陷）
+│   ├── mock_server.py         # 被测系统：本地 Mock 服务（含 2 个已知缺陷）
+│   └── static/                # 被测系统前端页面
+│       ├── login.html         # 登录页
+│       └── index.html         # 用户列表页
 ├── utils/
 │   ├── yaml_util.py           # YAML 读取
 │   ├── logger_util.py         # 日志（控制台 + 按天切分文件）
 │   └── assert_util.py         # 断言工具：状态码/字段/嵌套/类型/响应时间
 ├── logs/                      # 运行日志
 ├── report/                    # Allure 结果与报告
-├── pytest.ini
+├── pytest.ini                 # 接口测试配置
 └── requirements.txt
 ```
 
@@ -69,23 +84,30 @@ api_test_framework/
 ```bash
 # 1. 安装依赖
 pip install -r requirements.txt
+playwright install chromium      # 首次运行 UI 用例前需要下载浏览器
 
-# 2. 跑全部用例（Mock 服务会自动启动）
+# 2. 跑接口用例（Mock 服务会自动启动）
 pytest
 
-# 3. 生成 Allure 报告
+# 3. 跑 UI 用例
+pytest -c ui/pytest.ini
+
+# 4. 生成 Allure 报告
 allure generate report/allure-results -o report/allure-report --clean
 allure open report/allure-report
 ```
 
-也可以单独启动 Mock 服务，方便用 Postman 手工调试：
+也可以单独启动 Mock 服务，用浏览器或 Postman 手工体验被测系统：
 
 ```bash
 python mock_server/mock_server.py
-# 服务地址 http://127.0.0.1:8899
+# 登录页   http://127.0.0.1:8899/
+# 用户列表 http://127.0.0.1:8899/app
 ```
 
 ## 测试结果
+
+### 接口层（62 条）
 
 | 模块 | 用例数 | 通过 | 失败 | 说明 |
 |---|---|---|---|---|
@@ -96,7 +118,21 @@ python mock_server/mock_server.py
 | HTTP 协议层 | 20 | 20 | 0 | 参数回显/鉴权/状态码/重定向（外部 httpbin） |
 | **合计** | **62** | **60** | **2** | 2 条失败对应 2 个真实缺陷，见下 |
 
-> 执行命令：`pytest`　|　耗时约 9.3 秒　|　代码规模：13 个 Python 文件、1304 行
+> 执行命令：`pytest`　|　耗时约 9.3 秒
+
+### UI 层（19 条）
+
+| 模块 | 用例数 | 通过 | 失败 | 说明 |
+|---|---|---|---|---|
+| 登录页 | 9 | 8 | 1 | 元素渲染/前端校验/登录成功/登录失败/密码掩码 |
+| 用户列表页 | 10 | 10 | 0 | 列表渲染/表头/分页/新建用户/表单校验/退出/访问控制 |
+| **合计** | **19** | **18** | **1** | 失败对应用户视角的 BUG-001，见下 |
+
+> 执行命令：`pytest -c ui/pytest.ini`　|　耗时约 24 秒　|　技术栈：Playwright + Page Object 模式
+
+### 代码规模
+
+13 个接口相关 Python 文件 1304 行 + UI 层 9 个文件约 700 行，合计 **1800+ 行**。
 
 ## 发现的缺陷
 
@@ -128,6 +164,18 @@ python mock_server/mock_server.py
 > 这两个缺陷是 Mock 服务里**故意保留**的，用来演示「接口测试如何发现页面点不出来的问题」。
 > 真实项目里，这类缺陷往往就是接口测试最大的价值所在。
 
+### 同一个缺陷，两个视角（面试可以重点讲）
+
+BUG-001 在接口层和 UI 层的表现完全不同，这正好说明**为什么要做两层测试**：
+
+| 视角 | 现象 | 断言 |
+|---|---|---|
+| 接口层 | `POST /api/login` 返回 500 | 期望 401，实际 500 → 失败 |
+| UI 层 | 用户看到「系统异常，请稍后重试」 | 期望「用户名或密码错误」→ 失败 |
+
+接口测试能精确定位到「状态码错了」，UI 测试能说明「用户实际看到什么」。
+两者结合，缺陷单才完整——这是只做一层测试拿不到的信息。
+
 ## 过程中踩到并解决的坑
 
 1. **公开测试站不可靠**：黑马商城 410 下线、reqres.in 每日 40 次限流 → 改为自建 Mock
@@ -136,6 +184,12 @@ python mock_server/mock_server.py
 3. **HTTP keep-alive 请求体未读完**：服务端在 401/403 分支直接返回、没读请求体，
    残留字节被当成下一个请求的起始行，报 `Bad request syntax`
    → 所有提前返回的分支统一先 drain body
+4. **UI 分页陷阱**：新建用户后断言「第 1 页应出现新用户」一直失败，
+   实际是新用户 id 递增排到了最后一页
+   → 用例改为翻到最后一页查找，而不是死盯第 1 页
+5. **UI 用例互相污染登录态**：一开始所有用例共享一个浏览器上下文，
+   退出登录的用例把后续用例全带崩了
+   → 每个用例用独立的 context，Cookie / localStorage 完全隔离
 
 ## 技术栈
 
@@ -147,3 +201,34 @@ python mock_server/mock_server.py
 | allure-pytest | 可视化报告：步骤、附件、失败定位 |
 | PyYAML | 测试数据外置，数据与代码分离 |
 | http.server | 自建 Mock 被测系统（标准库，零依赖） |
+| **Playwright** | **UI 自动化：驱动 Chromium，支持等待、截图、多上下文隔离** |
+| **Page Object** | **UI 分层模式：页面元素与操作封装在页面类，用例只写业务逻辑** |
+
+## UI 自动化设计说明
+
+### 为什么用 Playwright 而不是 Selenium / Airtest
+
+| 对比项 | Playwright | Selenium | Airtest |
+|---|---|---|---|
+| 自动等待 | ✅ 内置智能等待 | ❌ 要手写显式等待 | ⚠️ 部分 |
+| 安装 | 一条命令装浏览器 | 要配 driver | 要 Android SDK |
+| 多上下文隔离 | ✅ 原生支持 | ⚠️ 要手动管理 | ❌ |
+| 图像识别 | ❌ | ❌ | ✅ |
+| 适用场景 | Web | Web | 移动端/游戏 |
+
+本项目测的是 Web 系统，Playwright 最合适：**内置等待**解决了 UI 自动化最大的痛点——元素还没渲染出来就去点。
+
+### Page Object 分层
+
+```
+用例层 ui/test_*_ui.py     只写业务逻辑与断言
+        ↓
+页面层 ui/*_page.py        封装页面元素定位与操作
+        ↓
+基类 ui/base_page.py       通用操作：点击/输入/等待/断言/截图
+        ↓
+驱动 ui/browser.py         浏览器生命周期与上下文管理
+```
+
+**为什么要 PO？** 页面改版时只改页面类，用例一行不用动。这是 UI 自动化能长期维护的前提。
+

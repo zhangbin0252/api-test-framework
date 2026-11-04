@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>用户管理系统 · 登录</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #4E7282 0%, #405E6C 100%);
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  }
+  .card {
+    background: #fff; width: 380px; padding: 40px 36px; border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.22);
+  }
+  h1 { font-size: 22px; color: #1a1a1a; margin-bottom: 6px; text-align: center; }
+  .sub { font-size: 13px; color: #888; text-align: center; margin-bottom: 26px; }
+  label { display: block; font-size: 13px; color: #444; margin-bottom: 6px; font-weight: 600; }
+  input[type=text], input[type=password] {
+    width: 100%; padding: 11px 13px; border: 1px solid #d5dbe0; border-radius: 6px;
+    font-size: 14px; outline: none; transition: border-color .2s;
+  }
+  input:focus { border-color: #4E7282; }
+  .field { margin-bottom: 18px; }
+  button {
+    width: 100%; padding: 12px; background: #4E7282; color: #fff; border: none;
+    border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: background .2s;
+  }
+  button:hover { background: #405E6C; }
+  button:disabled { background: #a8bcc4; cursor: not-allowed; }
+  #msg {
+    margin-top: 14px; font-size: 13px; text-align: center; min-height: 18px;
+  }
+  .err { color: #B03A2E; }
+  .ok { color: #2E6B3F; }
+  .hint {
+    margin-top: 22px; padding-top: 16px; border-top: 1px dashed #e2e6ea;
+    font-size: 12px; color: #999; line-height: 1.7;
+  }
+  .hint code { background: #f2f4f6; padding: 1px 5px; border-radius: 3px; color: #4E7282; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>用户管理系统</h1>
+    <p class="sub">请登录后继续</p>
+
+    <form id="loginForm">
+      <div class="field">
+        <label for="username">用户名</label>
+        <input type="text" id="username" name="username" placeholder="请输入用户名" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="password">密码</label>
+        <input type="password" id="password" name="password" placeholder="请输入密码" autocomplete="off">
+      </div>
+      <button type="submit" id="loginBtn">登 录</button>
+      <div id="msg"></div>
+    </form>
+
+    <div class="hint">
+      测试账号：<code>alice</code> / <code>Alice@123</code><br>
+      普通用户：<code>bob</code> / <code>Bob@12345</code>
+    </div>
+  </div>
+
+<script>
+const form = document.getElementById('loginForm');
+const msg = document.getElementById('msg');
+const btn = document.getElementById('loginBtn');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  msg.textContent = '';
+  msg.className = '';
+
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+
+  // 前端校验（这一层也要被 UI 自动化覆盖）
+  if (!username) { msg.textContent = '请输入用户名'; msg.className = 'err'; return; }
+  if (!password) { msg.textContent = '请输入密码'; msg.className = 'err'; return; }
+
+  btn.disabled = true;
+  btn.textContent = '登录中...';
+
+  try {
+    const resp = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await resp.json();
+
+    if (resp.status === 200 && data.token) {
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      msg.textContent = '登录成功，正在跳转...';
+      msg.className = 'ok';
+      setTimeout(() => { window.location.href = '/app'; }, 400);
+    } else if (resp.status === 500) {
+      // 对应 BUG-001：服务端把密码错误处理成了 500
+      msg.textContent = '系统异常，请稍后重试';
+      msg.className = 'err';
+    } else {
+      msg.textContent = data.message || '登录失败';
+      msg.className = 'err';
+    }
+  } catch (err) {
+    msg.textContent = '网络异常：' + err.message;
+    msg.className = 'err';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '登 录';
+  }
+});
+</script>
+</body>
+</html>
