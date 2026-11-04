@@ -1,0 +1,75 @@
+# 登录模块测试数据（数据驱动）
+# 字段：desc / username / password / expect_status / expect_error
+#   username、password 为 null 表示请求体里不传该字段（模拟参数缺失）
+
+login:
+  - desc: "正常登录-管理员"
+    username: "alice"
+    password: "Alice@123"
+    expect_status: 200
+    expect_token: true
+    expect_error: null
+
+  - desc: "正常登录-普通用户"
+    username: "bob"
+    password: "Bob@12345"
+    expect_status: 200
+    expect_token: true
+    expect_error: null
+
+  - desc: "异常-密码错误（服务端应返回 401，实际返回 500，BUG-001）"
+    username: "alice"
+    password: "wrong_password"
+    expect_status: 401
+    expect_error: "invalid_credentials"
+    known_bug: "BUG-001"
+
+  - desc: "异常-用户名不存在"
+    username: "not_exist_user"
+    password: "whatever"
+    expect_status: 401
+    expect_error: "invalid_credentials"
+    expect_token: false
+
+  - desc: "参数缺失-不传密码"
+    username: "alice"
+    password: null
+    expect_status: 400
+    expect_error: "password_required"
+    expect_token: false
+
+  - desc: "参数缺失-不传用户名"
+    username: null
+    password: "Alice@123"
+    expect_status: 400
+    expect_error: "username_required"
+    expect_token: false
+
+  - desc: "边界-空字符串密码"
+    username: "alice"
+    password: ""
+    expect_status: 400
+    expect_error: "password_required"
+    expect_token: false
+
+  - desc: "边界-空字符串用户名"
+    username: ""
+    password: "Alice@123"
+    expect_status: 400
+    expect_error: "username_required"
+    expect_token: false
+
+  - desc: "安全-密码不应出现在响应中"
+    username: "alice"
+    password: "Alice@123"
+    expect_status: 200
+    expect_token: true
+    expect_error: null
+    assert_password_hidden: true
+
+  - desc: "边界-超长用户名（100 字符）"
+    username: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    password: "Alice@123"
+    expect_status: 401
+    expect_error: "invalid_credentials"
+    expect_token: false

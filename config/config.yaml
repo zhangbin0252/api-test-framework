@@ -1,0 +1,28 @@
+# 全局配置
+# ------------------------------------------------------------------
+# 被测系统：本项目自带一个本地 Mock 服务（mock_server/mock_server.py）
+#   - 不依赖任何外部站点，测试结果 100% 可复现
+#   - 服务里故意留了 2 个缺陷（BUG-001 / BUG-002），用于演示「接口测试发现缺陷」
+#
+# 为什么不用公开测试站？
+#   黑马商城 hmshop-test.itheima.net 已于 2026 年下线（HTTP 410）；
+#   reqres.in 匿名访问有每日 40 次限流；
+#   jsonplaceholder / dummyjson 会随机超时。
+#   依赖它们会让测试结果不可复现，这在真实工作中是不可接受的。
+
+mock:
+  base_url: "http://127.0.0.1:8899"
+  timeout: 10
+
+# 测试账号（Mock 服务内置）
+accounts:
+  admin:
+    username: "alice"
+    password: "Alice@123"
+  normal:
+    username: "bob"
+    password: "Bob@12345"
+
+# 断言容差
+perf:
+  max_response_ms: 3000

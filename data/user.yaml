@@ -1,0 +1,106 @@
+# 用户模块测试数据（数据驱动）
+
+list_users:
+  - desc: "查询第 1 页，每页 2 条"
+    page: 1
+    size: 2
+    expect_status: 200
+    expect_count: 2
+
+  - desc: "查询第 2 页，每页 2 条（末页只剩 1 条）"
+    page: 2
+    size: 2
+    expect_status: 200
+    expect_count: 1
+
+  - desc: "边界-页码为 0，应返回 400"
+    page: 0
+    size: 2
+    expect_status: 400
+    expect_error: "invalid_page"
+
+  - desc: "边界-每页条数 0，应返回 400"
+    page: 1
+    size: 0
+    expect_status: 400
+    expect_error: "invalid_size"
+
+  - desc: "边界-每页条数 101，超过上限应返回 400"
+    page: 1
+    size: 101
+    expect_status: 400
+    expect_error: "invalid_size"
+
+  - desc: "边界-超大页码，返回空列表"
+    page: 99
+    size: 2
+    expect_status: 200
+    expect_count: 0
+
+get_user:
+  - desc: "查询存在的用户 id=1"
+    user_id: 1
+    expect_status: 200
+    expect_username: "alice"
+
+  - desc: "查询存在的用户 id=3"
+    user_id: 3
+    expect_status: 200
+    expect_username: "carol"
+
+  - desc: "查询不存在的用户 id=999，应返回 404"
+    user_id: 999
+    expect_status: 404
+    expect_error: "user_not_found"
+
+  - desc: "边界-id 为 0"
+    user_id: 0
+    expect_status: 404
+
+create_user:
+  - desc: "创建用户-正常"
+    username: "dave"
+    email: "dave@example.com"
+    expect_status: 201
+
+  - desc: "参数缺失-不传邮箱"
+    username: "frank"
+    email: ""
+    expect_status: 400
+    expect_error: "email_required"
+
+  - desc: "参数非法-邮箱格式错误"
+    username: "grace"
+    email: "not-an-email"
+    expect_status: 400
+    expect_error: "invalid_email"
+
+  - desc: "重复性-用户名已存在"
+    username: "alice"
+    email: "alice2@example.com"
+    expect_status: 409
+    expect_error: "duplicate_username"
+
+update_user:
+  - desc: "PATCH 局部更新-只改邮箱"
+    user_id: 2
+    patch: {"email": "bob_new@example.com"}
+    expect_status: 200
+
+  - desc: "参数非法-PATCH 传错误邮箱格式"
+    user_id: 2
+    patch: {"email": "bad-email"}
+    expect_status: 400
+    expect_error: "invalid_email"
+
+  - desc: "PUT 全量更新-缺少必填字段"
+    user_id: 2
+    put: {"email": "bob@example.com"}
+    expect_status: 400
+    expect_error: "missing_field"
+
+delete_user:
+  - desc: "删除不存在的用户，应返回 404"
+    user_id: 999
+    expect_status: 404
+    expect_error: "user_not_found"
