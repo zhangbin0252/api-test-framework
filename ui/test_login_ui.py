@@ -80,11 +80,19 @@ class TestLoginUI:
 
     @allure.story("登录失败")
     @allure.title("登录页 - 密码错误应提示「用户名或密码错误」（BUG-001：实际显示系统异常）")
+    @pytest.mark.xfail(
+        reason="已知缺陷 BUG-001：服务端密码错误返回 500，前端提示「系统异常」而非「密码错误」",
+        strict=True,
+    )
     def test_login_wrong_password_bug001(self, login_page, ui_config):
         """这条用例对应服务端已知缺陷 BUG-001
 
         服务端在密码错误时返回 500，前端把 500 处理成「系统异常，请稍后重试」。
         用户看到的是系统故障，而不是「密码错了」——这是体验缺陷，也是缺陷单的实证。
+
+        标 xfail 的原因同 test_auth.py::test_unauthorized_read_user：
+        断言的是正确行为，缺陷在服务端，用一个 strict xfail 让它不污染流水线，
+        同时保证缺陷修复后会立刻暴露。
         """
         acc = ui_config["accounts"]["admin"]
         login_page.login(acc["username"], "wrong_password")

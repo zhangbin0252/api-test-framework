@@ -43,11 +43,19 @@ class TestAuth:
 
     @allure.story("越权访问")
     @allure.title("越权检查 - 未登录查询用户详情（BUG-002：应 401，实际 200）")
+    @pytest.mark.xfail(
+        reason="已知缺陷 BUG-002：用户详情接口未做鉴权，未登录可查任意用户（水平越权）",
+        strict=True,
+    )
     def test_unauthorized_read_user(self, isolated_api):
         """对应服务端已知缺陷 BUG-002
 
         用户详情接口未做鉴权，未登录也能拿到任意用户数据，
         属于「水平越权」，真实项目里是安全缺陷。
+
+        标 xfail 的原因：这条用例断言的是正确行为，缺陷在服务端，
+        所以它必然失败。保留它反而是价值——缺陷一修，这里就会变成
+        XPASS 并报错，逼着人来删标记，保证缺陷修复不会无人察觉。
         """
         resp = isolated_api.get_user(1)
         A.status_code(resp, 401, "未登录不应能查询用户详情")
